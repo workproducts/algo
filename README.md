@@ -1,6 +1,5 @@
 # Algo VPN
 
-[![Join the chat at https://gitter.im/trailofbits/algo](https://badges.gitter.im/trailofbits/algo.svg)](https://gitter.im/trailofbits/algo?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 [![Twitter](https://img.shields.io/twitter/url/https/twitter.com/fold_left.svg?style=social&label=Follow%20%40AlgoVPN)](https://twitter.com/AlgoVPN)
 [![](https://github.com/trailofbits/algo/workflows/Main/badge.svg?branch=master)](https://github.com/trailofbits/algo/actions)
 
@@ -16,7 +15,7 @@ Algo VPN is a set of Ansible scripts that simplify the setup of a personal WireG
 * Blocks ads with a local DNS resolver (optional)
 * Sets up limited SSH users for tunneling traffic (optional)
 * Based on current versions of Ubuntu and strongSwan
-* Installs to DigitalOcean, Amazon Lightsail, Amazon EC2, Vultr, Microsoft Azure, Google Compute Engine, Scaleway, OpenStack, CloudStack, Hetzner Cloud, or [your own Ubuntu server (for more advanced users)](docs/deploy-to-ubuntu.md)
+* Installs to DigitalOcean, Amazon Lightsail, Amazon EC2, Vultr, Microsoft Azure, Google Compute Engine, Scaleway, OpenStack, CloudStack, Hetzner Cloud, Linode, or [your own Ubuntu server (for more advanced users)](docs/deploy-to-ubuntu.md)
 
 ## Anti-features
 
@@ -30,7 +29,7 @@ Algo VPN is a set of Ansible scripts that simplify the setup of a personal WireG
 
 The easiest way to get an Algo server running is to run it on your local system or from [Google Cloud Shell](docs/deploy-from-cloudshell.md) and let it set up a _new_ virtual machine in the cloud for you.
 
-1. **Setup an account on a cloud hosting provider.** Algo supports [DigitalOcean](https://m.do.co/c/4d7f4ff9cfe4) (most user friendly), [Amazon Lightsail](https://aws.amazon.com/lightsail/), [Amazon EC2](https://aws.amazon.com/), [Vultr](https://www.vultr.com/), [Microsoft Azure](https://azure.microsoft.com/), [Google Compute Engine](https://cloud.google.com/compute/), [Scaleway](https://www.scaleway.com/), [DreamCompute](https://www.dreamhost.com/cloud/computing/) or other OpenStack-based cloud hosting, [Exoscale](https://www.exoscale.com) or other CloudStack-based cloud hosting,  or [Hetzner Cloud](https://www.hetzner.com/).
+1. **Setup an account on a cloud hosting provider.** Algo supports [DigitalOcean](https://m.do.co/c/4d7f4ff9cfe4) (most user friendly), [Amazon Lightsail](https://aws.amazon.com/lightsail/), [Amazon EC2](https://aws.amazon.com/), [Vultr](https://www.vultr.com/), [Microsoft Azure](https://azure.microsoft.com/), [Google Compute Engine](https://cloud.google.com/compute/), [Scaleway](https://www.scaleway.com/), [DreamCompute](https://www.dreamhost.com/cloud/computing/), [Linode](https://www.linode.com), or other OpenStack-based cloud hosting, [Exoscale](https://www.exoscale.com) or other CloudStack-based cloud hosting,  or [Hetzner Cloud](https://www.hetzner.com/).
 
 2. **Get a copy of Algo.** The Algo scripts will be installed on your local system. There are two ways to get a copy:
 
@@ -40,33 +39,31 @@ The easiest way to get an Algo server running is to run it on your local system 
 
 3. **Install Algo's core dependencies.** Algo requires that **Python 3.6 or later** and at least one supporting package are installed on your system.
 
-    - **macOS:** Apple does not provide a suitable version of Python 3 with macOS. Here are two ways to obtain one:
-        * Use the [Homebrew](https://brew.sh) package manager. After installing Homebrew install Python 3 by running `brew install python3`.
-
-        * Download and install the latest stable [Python 3.7.x package](https://www.python.org/downloads/mac-osx/) (currently Python 3.8 will not work). Be sure to run the included *Install Certificates* command from Finder.
-
-        See [Deploy from macOS](docs/deploy-from-macos.md) for more detailed information on installing Python 3 on macOS.
-
-        Once Python 3 is installed on your Mac, from Terminal run:
+    - **macOS:** Catalina includes Python 3 as part of the optional Command Line Developer Tools package. From Terminal run:
 
         ```bash
-        python3 -m pip install --upgrade virtualenv
+        python3 -m pip install --user --upgrade virtualenv
         ```
+
+        If prompted, install the Command Line Developer Tools and re-run the above command.
+
+        See [Deploy from macOS](docs/deploy-from-macos.md) for information on installing Python 3 on macOS versions prior to Catalina.
 
     - **Linux:** Recent releases of Ubuntu, Debian, and Fedora come with Python 3 already installed. Make sure your system is up-to-date and install the supporting package(s):
         * Ubuntu and Debian:
-        ```bash
-        sudo apt install -y python3-virtualenv
-        ```
+            ```bash
+            sudo apt install -y --no-install-recommends python3-virtualenv
+            ```
+            On a Raspberry Pi running Ubuntu also install `libffi-dev` and `libssl-dev`.
         * Fedora:
-        ```bash
-        sudo dnf install -y python3-virtualenv
-        ```
+            ```bash
+            sudo dnf install -y python3-virtualenv
+            ```
         * Red Hat and CentOS 7 and later (for earlier versions see this [documentation](docs/deploy-from-redhat-centos6.md)):
-        ```bash
-        sudo yum -y install epel-release
-        sudo yum install -y python36-virtualenv
-        ```
+            ```bash
+            sudo yum -y install epel-release
+            sudo yum -y install python36-virtualenv
+            ```
 
     - **Windows:** Use the Windows Subsystem for Linux (WSL) to create your own copy of Ubuntu running under Windows from which to install and run Algo. See the [Windows documentation](docs/deploy-from-windows.md).
 
@@ -96,7 +93,7 @@ You can now set up clients to connect to your VPN. Proceed to [Configure the VPN
     "#                     Local DNS resolver 172.16.0.1                    #"
     "#        The p12 and SSH keys password for new users is XXXXXXXX       #"
     "#        The CA key password is XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX       #"
-    "#      Shell access: ssh -F configs/<server_ip>/ssh_config algo        #"
+    "#      Shell access: ssh -F configs/<server_ip>/ssh_config <hostname>  #"
 ```
 
 ## Configure the VPN Clients
@@ -151,19 +148,33 @@ Depending on the platform, you may need one or multiple of the following files.
 
 If you turned on the optional SSH tunneling role, then local user accounts will be created for each user in `config.cfg` and SSH authorized_key files for them will be in the `configs` directory (user.ssh.pem). SSH user accounts do not have shell access, cannot authenticate with a password, and only have limited tunneling options (e.g., `ssh -N` is required). This ensures that SSH users have the least access required to setup a tunnel and can perform no other actions on the Algo server.
 
-Use the example command below to start an SSH tunnel by replacing `<user>` and `<ip>` with your own. Once the tunnel is setup, you can configure a browser or other application to use 127.0.0.1:1080 as a SOCKS proxy to route traffic through the Algo server.
+Use the example command below to start an SSH tunnel by replacing `<user>` and `<ip>` with your own. Once the tunnel is setup, you can configure a browser or other application to use 127.0.0.1:1080 as a SOCKS proxy to route traffic through the Algo server:
 
- `ssh -D 127.0.0.1:1080 -f -q -C -N <user>@algo -i configs/<ip>/ssh-tunnel/<user>.pem -F configs/<ip>/ssh_config`
+```bash
+ssh -D 127.0.0.1:1080 -f -q -C -N <user>@algo -i configs/<ip>/ssh-tunnel/<user>.pem -F configs/<ip>/ssh_config
+```
 
 ## SSH into Algo Server
 
 Your Algo server is configured for key-only SSH access for administrative purposes. Open the Terminal app, `cd` into the `algo-master` directory where you originally downloaded Algo, and then use the command listed on the success message:
 
- `ssh -F configs/<ip>/ssh_config algo`
+```
+ssh -F configs/<ip>/ssh_config <hostname>
+```
 
-where `<ip>` is the IP address of your Algo server. If you find yourself regularly logging into the server then it will be useful to load your Algo ssh key automatically. Add the following snippet to the bottom of `~/.bash_profile` to add it to your shell environment permanently.
+where `<ip>` is the IP address of your Algo server. If you find yourself regularly logging into the server then it will be useful to load your Algo ssh key automatically. Add the following snippet to the bottom of `~/.bash_profile` to add it to your shell environment permanently:
 
- `ssh-add ~/.ssh/algo > /dev/null 2>&1`
+```
+ssh-add ~/.ssh/algo > /dev/null 2>&1
+```
+
+Alternatively, you can choose to include the generated configuration for any Algo servers created into your SSH config. Edit the file `~/.ssh/config` to include this directive at the top:
+
+```
+Include <algodirectory>/configs/*/ssh_config
+```
+
+where `<algodirectory>` is the directory where you cloned Algo.
 
 ## Adding or Removing Users
 
@@ -176,11 +187,42 @@ _If you chose to save the CA key during the deploy process,_ then Algo's own scr
 After this process completes, the Algo VPN server will contain only the users listed in the `config.cfg` file.
 
 ## Additional Documentation
-* [Deployment instructions, cloud provider setup instructions, and further client setup instructions available here.](docs/index.md)
 * [FAQ](docs/faq.md)
 * [Troubleshooting](docs/troubleshooting.md)
+* How Algo uses [Firewalls](docs/firewalls.md)
 
-If you read all the documentation and have further questions, [join the chat on Gitter](https://gitter.im/trailofbits/algo).
+### Setup Instructions for Specific Cloud Providers
+* Configure [Amazon EC2](docs/cloud-amazon-ec2.md)
+* Configure [Azure](docs/cloud-azure.md)
+* Configure [DigitalOcean](docs/cloud-do.md)
+* Configure [Google Cloud Platform](docs/cloud-gce.md)
+* Configure [Vultr](docs/cloud-vultr.md)
+* Configure [CloudStack](docs/cloud-cloudstack.md)
+* Configure [Hetzner Cloud](docs/cloud-hetzner.md)
+
+### Install and Deploy from Common Platforms
+* Deploy from [macOS](docs/deploy-from-macos.md)
+* Deploy from [Windows](docs/deploy-from-windows.md)
+* Deploy from [Google Cloud Shell](docs/deploy-from-cloudshell.md)
+* Deploy from [RedHat/CentOS 6.x](docs/deploy-from-redhat-centos6.md)
+* Deploy from a [Docker container](docs/deploy-from-docker.md)
+
+### Setup VPN Clients to Connect to the Server
+* Setup [Android](docs/client-android.md) clients
+* Setup [Linux](docs/client-linux.md) clients with Ansible
+* Setup Ubuntu clients to use [WireGuard](docs/client-linux-wireguard.md)
+* Setup Linux clients to use [IPsec](docs/client-linux-ipsec.md)
+* Setup Apple devices to use [IPsec](docs/client-apple-ipsec.md)
+* Setup Macs running macOS 10.13 or older to use [WireGuard](docs/client-macos-wireguard.md)
+
+### Advanced Deployment
+* Deploy to your own [Ubuntu](docs/deploy-to-ubuntu.md) server, and road warrior setup
+* Deploy from [Ansible](docs/deploy-from-ansible.md) non-interactively
+* Deploy onto a [cloud server at time of creation with shell script or cloud-init](docs/deploy-from-script-or-cloud-init-to-localhost.md)
+* Deploy to an [unsupported cloud provider](docs/deploy-to-unsupported-cloud.md)
+* Deploy to your own [FreeBSD](docs/deploy-to-freebsd.md) server
+
+If you've read all the documentation and have further questions, [create a new discussion](https://github.com/trailofbits/algo/discussions).
 
 ## Endorsements
 

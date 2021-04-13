@@ -45,6 +45,15 @@
     - { regexp: '^session.*optional.*pam_motd.so.*', line: '# MOTD DISABLED', file: '/etc/pam.d/login' }
     - { regexp: '^session.*optional.*pam_motd.so.*', line: '# MOTD DISABLED', file: '/etc/pam.d/sshd' }
 
+- name: Ensure fallback resolvers are set
+  ini_file:
+    path: /etc/systemd/resolved.conf
+    section: Resolve
+    option: FallbackDNS
+    value: "{{ dns_servers.ipv4 | join(' ') }}"
+  notify:
+    - restart systemd-resolved
+
 - name: Loopback for services configured
   template:
     src: 10-algo-lo100.network.j2
@@ -77,16 +86,6 @@
 
 - name: Gather additional facts
   import_tasks: facts.yml
-
-- name: IPv6 egress alias configured
-  template:
-    src: 99-algo-ipv6-egress.yaml.j2
-    dest: /etc/netplan/99-algo-ipv6-egress.yaml
-  when:
-    - ipv6_support
-    - ipv6_subnet_size|int > 1
-  notify:
-    - netplan apply
 
 - name: Set OS specific facts
   set_fact:

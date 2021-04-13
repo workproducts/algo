@@ -16,10 +16,13 @@ First of all, check [this](https://github.com/trailofbits/algo#features) and ens
      * [AWS: "Deploy the template" fails with CREATE_FAILED](#aws-deploy-the-template-fails-with-create_failed)
      * [AWS: not authorized to perform: cloudformation:UpdateStack](#aws-not-authorized-to-perform-cloudformationupdatestack)
      * [DigitalOcean: error tagging resource 'xxxxxxxx': param is missing or the value is empty: resources](#digitalocean-error-tagging-resource)
+     * [Azure: The client xxx with object id xxx does not have authorization to perform action Microsoft.Resources/subscriptions/resourcegroups/write' over scope](#azure-deployment-permissions-error)
      * [Windows: The value of parameter linuxConfiguration.ssh.publicKeys.keyData is invalid](#windows-the-value-of-parameter-linuxconfigurationsshpublickeyskeydata-is-invalid)
      * [Docker: Failed to connect to the host via ssh](#docker-failed-to-connect-to-the-host-via-ssh)
+     * [Error: Failed to create symlinks for deploying to localhost](#error-failed-to-create-symlinks-for-deploying-to-localhost)
      * [Wireguard: Unable to find 'configs/...' in expected paths](#wireguard-unable-to-find-configs-in-expected-paths)
      * [Ubuntu Error: "unable to write 'random state'" when generating CA password](#ubuntu-error-unable-to-write-random-state-when-generating-ca-password)
+     * [Timeout when waiting for search string OpenSSH in xxx.xxx.xxx.xxx:4160](#old-networking-firewall-in-place)
   * [Connection Problems](#connection-problems)
      * [I'm blocked or get CAPTCHAs when I access certain websites](#im-blocked-or-get-captchas-when-i-access-certain-websites)
      * [I want to change the list of trusted Wifi networks on my Apple device](#i-want-to-change-the-list-of-trusted-wifi-networks-on-my-apple-device)
@@ -223,6 +226,40 @@ The error is caused because Digital Ocean changed its API to treat the tag argum
 5. Finally run `doctl compute tag list` to make sure that the tag has been deleted
 6. Run algo as directed
 
+### Azure: No such file or directory: '/home/username/.azure/azureProfile.json'
+ 
+ ```
+ TASK [cloud-azure : Create AlgoVPN Server] *****************************************************************************************************************************************************************
+An exception occurred during task execution. To see the full traceback, use -vvv. 
+The error was: FileNotFoundError: [Errno 2] No such file or directory: '/home/ubuntu/.azure/azureProfile.json'
+fatal: [localhost]: FAILED! => {"changed": false, "module_stderr": "Traceback (most recent call last):
+File \"/usr/local/lib/python3.6/dist-packages/azure/cli/core/_session.py\", line 39, in load
+with codecs_open(self.filename, 'r', encoding=self._encoding) as f:
+File \"/usr/lib/python3.6/codecs.py\", line 897, in open\n    file = builtins.open(filename, mode, buffering)
+FileNotFoundError: [Errno 2] No such file or directory: '/home/ubuntu/.azure/azureProfile.json'
+", "module_stdout": "", "msg": "MODULE FAILURE
+See stdout/stderr for the exact error", "rc": 1}
+```
+
+It happens when your machine is not authenticated in the azure cloud, follow this [guide](https://trailofbits.github.io/algo/cloud-azure.html) to configure your environment
+
+### Azure: Deployment Permissions Error
+
+The AAD Application Registration (aka, the 'Service Principal', where you got the ClientId) needs permission to create the resources for the subscription. Otherwise, you will get the following error when you run the Ansible deploy script:
+
+```
+fatal: [localhost]: FAILED! => {"changed": false, "msg": "Resource group create_or_update failed with status code: 403 and message: The client 'xxxxx' with object id 'THE_OBJECT_ID' does not have authorization to perform action 'Microsoft.Resources/subscriptions/resourcegroups/write' over scope '/subscriptions/THE_SUBSCRIPTION_ID/resourcegroups/algo' or the scope is invalid. If access was recently granted, please refresh your credentials."}
+```
+
+The solution for this is to open the Azure CLI and run the following command to grant contributor role to the Service Principal:
+
+```
+az role assignment create --assignee-object-id THE_OBJECT_ID --scope subscriptions/THE_SUBSCRIPTION_ID --role contributor
+```
+
+After this is applied, the Service Principal has permissions to create the resources and you can re-run `ansible-playbook main.yml` to complete the deployment.
+
+
 ### Windows: The value of parameter linuxConfiguration.ssh.publicKeys.keyData is invalid
 
 You tried to deploy Algo from Windows and you received an error like this one:
@@ -256,6 +293,41 @@ You need to add the following to the ansible.cfg in repo root:
 control_path_dir=/dev/shm/ansible_control_path
 ```
 
+### Error: Failed to create symlinks for deploying to localhost
+
+You tried to run Algo and you received an error like this one:
+
+```
+TASK [Create a symlink if deploying to localhost] ********************************************************************
+fatal: [localhost]: FAILED! => {"changed": false, "gid": 1000, "group": "ubuntu", "mode": "0775", "msg": "the directory configs/localhost is not empty, refusing to convert it", "owner": "ubuntu", "path": "configs/localhost", "size": 4096, "state": "directory", "uid": 1000}
+included: /home/ubuntu/algo-master/playbooks/rescue.yml for localhost
+
+TASK [debug] *********************************************************************************************************
+ok: [localhost] => {
+    "fail_hint": [
+        "Sorry, but something went wrong!",
+        "Please check the troubleshooting guide.",
+        "https://trailofbits.github.io/algo/troubleshooting.html"
+    ]
+}
+
+TASK [Fail the installation] *****************************************************************************************
+```
+This error is usually encountered when using the local install option and `localhost` is provided in answer to this question, which is expecting an IP address or domain name of your server:
+```
+Enter the public IP address or domain name of your server: (IMPORTANT! This is used to verify the certificate)
+[localhost]
+:
+```
+
+You should remove the files in /etc/wireguard/ and configs/ as follows:
+```ssh
+sudo rm -rf /etc/wireguard/*
+rm -rf configs/*
+``` 
+
+And then immediately re-run `./algo` and provide a domain name or IP address in response to the question referenced above. 
+
 ### Wireguard: Unable to find 'configs/...' in expected paths
 
 You tried to run Algo and you received an error like this one:
@@ -266,10 +338,11 @@ TASK [wireguard : Generate public keys] ****************************************
 
 fatal: [localhost]: FAILED! => {"msg": "An unhandled exception occurred while running the lookup plugin 'file'. Error was a <class 'ansible.errors.AnsibleError'>, original message: could not locate file in lookup: configs/xxx.xxx.xxx.xxx/wireguard//private/dan"}
 ```
-This error is usually hit when using the local install option on a server that isn't Ubuntu 18.04. You should upgrade your server to Ubuntu 18.04. If this doesn't work, try removing `*.lock` files at /etc/wireguard/ as follows:
+This error is usually hit when using the local install option on a server that isn't Ubuntu 18.04 or later. You should upgrade your server to Ubuntu 18.04 or later. If this doesn't work, try removing files in /etc/wireguard/ and the configs directories as follows:
 
 ```ssh
-sudo rm -rf /etc/wireguard/*.lock
+sudo rm -rf /etc/wireguard/*
+rm -rf configs/*
 ```
 Then immediately re-run `./algo`.
 
@@ -289,6 +362,27 @@ sudo chown $USER:$USER $HOME/.rnd
 ```
 
 Now, run Algo again.
+
+### Old Networking Firewall In Place
+
+You may see the following output when attemptint to run ./algo from your localhost:
+
+```
+TASK [Wait until SSH becomes ready...] **********************************************************************************************************************
+fatal: [localhost]: FAILED! => {"changed": false, "elapsed": 321, "msg": "Timeout when waiting for search string OpenSSH in xxx.xxx.xxx.xxx:4160"}
+included: /home/<username>/algo/algo/playbooks/rescue.yml for localhost
+
+TASK [debug] ************************************************************************************************************************************************
+ok: [localhost] => {
+    "fail_hint": [
+        "Sorry, but something went wrong!",
+        "Please check the troubleshooting guide.",
+        "https://trailofbits.github.io/algo/troubleshooting.html"
+    ]
+}
+```
+
+If you see this error then one possible explanation is that you have a previous firewall configured in your cloud hosting provider which needs to be either updated or ideally removed. Removing this can often fix this issue.
 
 ## Connection Problems
 
@@ -430,4 +524,4 @@ If your router runs [pfSense](https://www.pfsense.org) and a single IPsec client
 
 ## I have a problem not covered here
 
-If you have an issue that you cannot solve with the guidance here, [join our Gitter](https://gitter.im/trailofbits/algo) and ask for help. If you think you found a new issue in Algo, [file an issue](https://github.com/trailofbits/algo/issues/new).
+If you have an issue that you cannot solve with the guidance here, [create a new discussion](https://github.com/trailofbits/algo/discussions) and ask for help. If you think you found a new issue in Algo, [file an issue](https://github.com/trailofbits/algo/issues/new).
